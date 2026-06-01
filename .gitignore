@@ -1,0 +1,27 @@
+# Large data files
+dataa/train.csv
+dataa/*.csv
+dataa/*.jsonl
+dataa/*.json
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.pytest_cache/
+
+# Environment files
+.env
+.venv
+venv/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# Database
+*.db
+logs/

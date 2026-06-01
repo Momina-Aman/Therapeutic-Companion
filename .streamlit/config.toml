@@ -1,0 +1,38 @@
+# Streamlit Configuration - Production Settings
+# Location: .streamlit/config.toml
+
+[client]
+toolbarMode = "minimal"
+showErrorDetails = false
+showWarningOnDirectoryDelete = false
+showSidebarNavigation = true
+
+[logger]
+level = "warning"
+messageFormat = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+
+[theme]
+primaryColor = "#6B9080"
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#E8F5F0"
+textColor = "#2C3E50"
+font = "sans serif"
+
+[server]
+maxUploadSize = 200
+maxMessageSize = 200
+enableXsrfProtection = true
+enableCORS = true
+sessionExpirationSeconds = 1800
+maxCachedMessageAge = 0
+headless = false
+runOnSave = false
+
+[browser]
+gatherUsageStats = false
+serverAddress = "localhost"
+serverPort = 8501
+
+[deprecation]
+showPyarrowDeprecationWarning = false
+showfileUploaderEncoding = false
