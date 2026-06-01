@@ -8,6 +8,7 @@ Page: 01_Companion_Chat.py
 Module: Therapeutic Companion - Phase 2
 """
 
+import os
 import streamlit as st
 from auth import check_auth
 from brain import initialize_engine
@@ -61,7 +62,14 @@ def get_therapist_engine():
     if not st.session_state.engine_initialized:
         with st.spinner("Initializing Therapist Engine..."):
             try:
-                engine = initialize_engine()
+                # Resolve API key: env var first, then secrets.toml
+                api_key = os.getenv("GOOGLE_API_KEY")
+                if not api_key:
+                    try:
+                        api_key = st.secrets.get("GOOGLE_API_KEY")
+                    except Exception:
+                        api_key = None
+                engine = initialize_engine(api_key=api_key)
 
                 if engine:
                     readiness = engine.check_readiness()

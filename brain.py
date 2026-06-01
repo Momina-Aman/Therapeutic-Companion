@@ -15,7 +15,6 @@ import logging
 from pathlib import Path
 from typing import List, Dict, Any, Optional, Tuple
 import chromadb
-from chromadb.config import Settings
 import google.generativeai as genai
 
 
@@ -41,13 +40,6 @@ logging.basicConfig(
     ]
 )
 logger = logging.getLogger(__name__)
-
-# ChromaDB settings
-CHROMA_SETTINGS = Settings(
-    chroma_db_impl="duckdb+parquet",
-    persist_directory=str(VECTOR_DB_DIR),
-    anonymized_telemetry=False
-)
 
 # RAG configuration
 RETRIEVAL_K = 5  # Number of documents to retrieve
@@ -106,7 +98,7 @@ class TherapistEngine:
 
         genai.configure(api_key=self.api_key)
         self.model = genai.GenerativeModel(
-            model_name="gemini-pro",
+            model_name="gemini-1.5-flash",
             system_instruction=SYSTEM_PROMPT
         )
 
@@ -128,10 +120,18 @@ class TherapistEngine:
                 logger.info("Please run 'python ingest.py' to initialize the vector store.")
                 return None
 
-            client = chromadb.Client(CHROMA_SETTINGS)
+            try:
+                from chromadb.utils.embedding_functions import SentenceTransformerEmbeddingFunction
+                embedding_fn = SentenceTransformerEmbeddingFunction(model_name="all-MiniLM-L6-v2")
+            except Exception as e:
+                logger.warning(f"SentenceTransformer unavailable ({e}). Chat requires PyTorch.")
+                return None
+
+            client = chromadb.PersistentClient(path=str(VECTOR_DB_DIR))
             collection = client.get_or_create_collection(
                 name="therapeutic_companion",
-                metadata={"hnsw:space": "cosine"}
+                metadata={"hnsw:space": "cosine"},
+                embedding_function=embedding_fn
             )
 
             logger.info(f"ChromaDB collection loaded with {collection.count()} documents")
@@ -267,14 +267,28 @@ class TherapistEngine:
             if not content:
                 return ""
 
-            # Split entries by common separators
-            entries = content.split("\n---\n")  # Common entry separator
+            # Parse entries written by Activities page (separated by '='*60 lines)
+            separator = '=' * 60
+            sections = content.split(separator)
+            entries = []
+            for section in sections:
+                section = section.strip()
+                if not section:
+                    continue
+                # Extract content after the [timestamp] marker if present
+                if '[' in section and ']' in section:
+                    ts_end = section.find(']')
+                    entry_content = section[ts_end + 1:].strip()
+                else:
+                    entry_content = section
+                if entry_content:
+                    entries.append(entry_content)
 
             # Get last k entries
             recent_entries = entries[-k:] if len(entries) >= k else entries
 
             journal_context = "\n".join([
-                f"Journal Entry {idx + 1}:\n{entry.strip()}"
+                f"Journal Entry {idx + 1}:\n{entry}"
                 for idx, entry in enumerate(recent_entries)
             ])
 

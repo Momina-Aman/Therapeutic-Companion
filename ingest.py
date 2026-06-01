@@ -18,9 +18,11 @@ import logging
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 import chromadb
-from chromadb.config import Settings
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-from sentence_transformers import SentenceTransformer
+from chromadb.utils.embedding_functions import SentenceTransformerEmbeddingFunction
+try:
+    from langchain_text_splitters import RecursiveCharacterTextSplitter
+except ImportError:
+    from langchain.text_splitter import RecursiveCharacterTextSplitter
 
 
 # ============================================================================
@@ -48,19 +50,14 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# ChromaDB settings
-CHROMA_SETTINGS = Settings(
-    chroma_db_impl="duckdb+parquet",
-    persist_directory=str(VECTOR_DB_DIR),
-    anonymized_telemetry=False
-)
+# Embedding model (used by both ingest and retrieval)
+EMBEDDING_FUNCTION = SentenceTransformerEmbeddingFunction(model_name="all-MiniLM-L6-v2")
 
 # Text splitting configuration
 CHUNK_SIZE = 1000
 CHUNK_OVERLAP = 100
 
-# Embedding model
-EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
+EMBEDDING_MODEL = "all-MiniLM-L6-v2"
 
 
 # ============================================================================
@@ -287,18 +284,18 @@ def initialize_chromadb(documents: List[Dict[str, Any]]) -> chromadb.Collection:
     logger.info("Initializing ChromaDB with sentence-transformers...")
 
     try:
-        # Initialize Chroma client
-        client = chromadb.Client(CHROMA_SETTINGS)
+        # PersistentClient auto-persists to disk (chromadb >=0.4)
+        client = chromadb.PersistentClient(path=str(VECTOR_DB_DIR))
 
-        # Get or create collection
+        # Get or create collection with explicit embedding function
         collection = client.get_or_create_collection(
             name="therapeutic_companion",
-            metadata={"hnsw:space": "cosine"}
+            metadata={"hnsw:space": "cosine"},
+            embedding_function=EMBEDDING_FUNCTION
         )
 
-        logger.info(f"Collection 'therapeutic_companion' initialized/retrieved")
+        logger.info("Collection 'therapeutic_companion' initialized/retrieved")
 
-        # Add documents to collection
         if documents:
             ids = []
             documents_text = []
@@ -317,9 +314,6 @@ def initialize_chromadb(documents: List[Dict[str, Any]]) -> chromadb.Collection:
             )
 
             logger.info(f"Added {len(documents)} documents to ChromaDB collection")
-
-            # Persist to disk
-            client.persist()
             logger.info(f"ChromaDB persisted to {VECTOR_DB_DIR}")
 
         return collection
@@ -388,8 +382,11 @@ def get_collection_stats() -> Dict[str, Any]:
         Dictionary with collection statistics.
     """
     try:
-        client = chromadb.Client(CHROMA_SETTINGS)
-        collection = client.get_collection(name="therapeutic_companion")
+        client = chromadb.PersistentClient(path=str(VECTOR_DB_DIR))
+        collection = client.get_collection(
+            name="therapeutic_companion",
+            embedding_function=EMBEDDING_FUNCTION
+        )
 
         return {
             "collection_name": "therapeutic_companion",

@@ -313,7 +313,13 @@ def render_system_status() -> None:
     col1, col2, col3 = st.columns(3)
 
     with col1:
-        api_ready = bool(st.secrets.get("GOOGLE_API_KEY", None))
+        import os
+        try:
+            api_ready = bool(
+                os.getenv("GOOGLE_API_KEY") or st.secrets.get("GOOGLE_API_KEY")
+            )
+        except Exception:
+            api_ready = False
         status = "✅ Ready" if api_ready else "⚠️ Not Configured"
         st.info(f"**API Connection**: {status}")
 

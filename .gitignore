@@ -17,6 +17,9 @@ __pycache__/
 venv/
 ENV/
 
+# Streamlit secrets (contains API keys - never commit)
+.streamlit/secrets.toml
+
 # IDE
 .vscode/
 .idea/
